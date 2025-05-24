@@ -1,19 +1,23 @@
 const express = require('express');
 const fetch = require('node-fetch');
 const cors = require('cors');
+const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Aktifkan CORS untuk semua domain
+// Aktifkan CORS untuk semua domain (boleh kamu sesuaikan jika mau dibatasi)
 app.use(cors());
 
 // Parsing body JSON
 app.use(express.json());
 
-// Health check
+// Serve folder public untuk frontend
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Endpoint root serve file index.html
 app.get('/', (req, res) => {
-  res.send('WolfBet Bot Proxy Server is running');
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // Verifikasi token user (ambil data profil)
