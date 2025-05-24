@@ -5,7 +5,10 @@ const cors = require('cors');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Aktifkan CORS untuk semua domain
 app.use(cors());
+
+// Parsing body JSON
 app.use(express.json());
 
 // Health check
@@ -13,7 +16,7 @@ app.get('/', (req, res) => {
   res.send('WolfBet Bot Proxy Server is running');
 });
 
-// Verifikasi token user dengan fetch profil
+// Verifikasi token user (ambil data profil)
 app.post('/api/verify-token', async (req, res) => {
   const { token } = req.body;
 
@@ -21,7 +24,9 @@ app.post('/api/verify-token', async (req, res) => {
 
   try {
     const response = await fetch('https://wolfbet.com/api/v1/user/profile', {
-      headers: { 'Authorization': `Bearer ${token}` }
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
     });
 
     if (!response.ok) {
@@ -35,7 +40,7 @@ app.post('/api/verify-token', async (req, res) => {
   }
 });
 
-// Place bet endpoint
+// Endpoint untuk place bet
 app.post('/api/place-bet', async (req, res) => {
   const { token, amount, rule, multiplier, betValue, currency = 'USDT' } = req.body;
 
