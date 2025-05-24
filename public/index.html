@@ -78,11 +78,41 @@
   </div>
 
   <script>
-  document.getElementById('login-btn').onclick = () => {
+  document.getElementById('login-btn').onclick = async () => {
   const inputToken = document.getElementById('manual-token').value.trim();
   if (!inputToken) return alert('Token tidak boleh kosong');
-  localStorage.setItem('token', inputToken);
-  alert('Token disimpan. Siap digunakan.');
+
+  try {
+    const res = await fetch('https://wolfbet.com/api/v1/user/me', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${inputToken}`
+      }
+    });
+
+    if (!res.ok) {
+      alert('Login gagal: Token tidak valid');
+      return;
+    }
+
+    const data = await res.json();
+    const username = data.username || 'Unknown';
+    const userId = data.id || 'N/A';
+
+    // Tampilkan info ke log
+    log(`Login berhasil sebagai ${username} (ID: ${userId})`);
+
+    // Simpan token hanya jika login berhasil
+    localStorage.setItem('token', inputToken);
+
+    // Optional: tampilkan info user di UI
+    document.getElementById('balance-bar').innerHTML = `
+      <div>Username: ${username}</div>
+      <div>ID: ${userId}</div>
+    `;
+  } catch (err) {
+    alert('Terjadi kesalahan jaringan saat login');
+  }
 };
     const tokenSelect = document.getElementById('token-select');
     const balanceEl = document.getElementById('balance');
