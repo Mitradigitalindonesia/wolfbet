@@ -3,90 +3,55 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Login WolfBet API Token</title>
+  <title>WolfBet Login</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
+      font-family: Arial;
       max-width: 400px;
-      margin: 50px auto;
+      margin: 40px auto;
       padding: 20px;
       border: 1px solid #ccc;
       border-radius: 8px;
     }
-    h2 {
-      text-align: center;
+    h2 { text-align: center; }
+    input, button {
+      width: 100%; padding: 10px; margin-top: 10px;
     }
-    input[type="text"] {
-      width: 100%;
-      padding: 10px;
-      margin: 12px 0;
-      box-sizing: border-box;
-      font-size: 16px;
-    }
-    button {
-      width: 100%;
-      padding: 10px;
-      font-size: 16px;
-      cursor: pointer;
-    }
-    .error {
-      color: red;
-      margin-top: 10px;
-      text-align: center;
-    }
+    .error { color: red; text-align: center; }
     .user-info {
-      margin-top: 20px;
-      padding: 10px;
-      background: #e0ffe0;
-      border: 1px solid #0a0;
-      border-radius: 5px;
-    }
-    .logout-btn {
-      margin-top: 15px;
-      background: #c00;
-      color: #fff;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
+      background: #e0ffe0; padding: 10px; border-radius: 5px; margin-top: 20px;
     }
   </style>
 </head>
 <body>
-  <h2>Login dengan API Token WolfBet</h2>
-
+  <h2>Login dengan API Token</h2>
   <div id="login-form">
-    <input type="text" id="token-input" placeholder="Masukkan API Token" />
+    <input id="token-input" placeholder="Masukkan token" />
     <button id="login-btn">Login</button>
-    <div id="error-msg" class="error"></div>
+    <div class="error" id="error-msg"></div>
   </div>
 
-  <div id="user-info" class="user-info" style="display:none;">
-    <h3>Login berhasil!</h3>
+  <div class="user-info" id="user-info" style="display:none;">
     <p><strong>Username:</strong> <span id="username"></span></p>
     <p><strong>User ID:</strong> <span id="userid"></span></p>
-    <button id="logout-btn" class="logout-btn">Logout</button>
+    <button id="logout-btn" style="background:red;color:white;">Logout</button>
   </div>
 
   <script>
     const loginBtn = document.getElementById('login-btn');
     const tokenInput = document.getElementById('token-input');
     const errorMsg = document.getElementById('error-msg');
-    const userInfoDiv = document.getElementById('user-info');
-    const loginFormDiv = document.getElementById('login-form');
-    const usernameSpan = document.getElementById('username');
-    const useridSpan = document.getElementById('userid');
+    const userInfo = document.getElementById('user-info');
+    const username = document.getElementById('username');
+    const userid = document.getElementById('userid');
     const logoutBtn = document.getElementById('logout-btn');
 
-    loginBtn.addEventListener('click', async () => {
+    loginBtn.onclick = async () => {
       const token = tokenInput.value.trim();
-      errorMsg.textContent = '';
-      if (!token) {
-        errorMsg.textContent = 'Token wajib diisi';
-        return;
-      }
+      if (!token) return errorMsg.textContent = "Token wajib diisi";
 
       loginBtn.disabled = true;
-      loginBtn.textContent = 'Loading...';
+      errorMsg.textContent = "Loading...";
 
       try {
         const res = await fetch('/api/verify-token', {
@@ -94,32 +59,28 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ token })
         });
-
         const data = await res.json();
-
         if (data.success) {
-          usernameSpan.textContent = data.user.username || data.user.name || 'Unknown';
-          useridSpan.textContent = data.user.id || 'N/A';
-
-          userInfoDiv.style.display = 'block';
-          loginFormDiv.style.display = 'none';
+          username.textContent = data.user.username || 'Tidak diketahui';
+          userid.textContent = data.user.id || 'N/A';
+          userInfo.style.display = 'block';
+          loginBtn.style.display = 'none';
         } else {
           errorMsg.textContent = data.error || 'Login gagal';
         }
-      } catch (error) {
-        errorMsg.textContent = 'Terjadi kesalahan jaringan';
+      } catch {
+        errorMsg.textContent = "Terjadi kesalahan jaringan.";
       } finally {
         loginBtn.disabled = false;
-        loginBtn.textContent = 'Login';
       }
-    });
+    };
 
-    logoutBtn.addEventListener('click', () => {
+    logoutBtn.onclick = () => {
+      userInfo.style.display = 'none';
+      loginBtn.style.display = 'block';
       tokenInput.value = '';
       errorMsg.textContent = '';
-      userInfoDiv.style.display = 'none';
-      loginFormDiv.style.display = 'block';
-    });
+    };
   </script>
 </body>
 </html>
