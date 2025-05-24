@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Bot Dashboard</title>
+  <style>
+    body { font-family: Arial; padding: 20px; max-width: 800px; margin: auto; }
+    h2 { margin-top: 0; }
+    #terminal {
+      background: #000;
+      color: #0f0;
+      padding: 10px;
+      height: 200px;
+      overflow-y: scroll;
+      font-family: monospace;
+      border-radius: 5px;
+      margin-top: 10px;
+    }
+    #controls input {
+      margin-bottom: 10px;
+      width: 100%;
+      padding: 8px;
+    }
+    button {
+      padding: 10px;
+      width: 100%;
+      margin-top: 5px;
+    }
+    #chart-container {
+      margin-top: 30px;
+    }
+  </style>
+</head>
+<body>
+  <h2>Dashboard Bot Dice</h2>
+  <div>
+    <strong>User:</strong> <span id="username"></span><br>
+    <strong>User ID:</strong> <span id="userid"></span>
+  </div>
+
+  <div id="controls">
+    <h3>Pengaturan Bot</h3>
+    <label>Base Bet:</label>
+    <input id="baseBet" type="number" value="10" />
+    <label>Stop Loss:</label>
+    <input id="stopLoss" type="number" value="100" />
+    <label>Profit Target per Sesi:</label>
+    <input id="profitTarget" type="number" value="20" />
+    <button id="startBtn">Start Bot</button>
+    <button id="stopBtn" style="background:red;color:white;">Stop Bot</button>
+  </div>
+
+  <h3>Log Transaksi</h3>
+  <div id="terminal"></div>
+
+  <div id="chart-container">
+    <canvas id="profitChart" height="100"></canvas>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    const username = localStorage.getItem('username') || 'Guest';
+    const userid = localStorage.getItem('userid') || 'N/A';
+    const token = localStorage.getItem('token');
+
+    document.getElementById('username').textContent = username;
+    document.getElementById('userid').textContent = userid;
+
+    const terminal = document.getElementById('terminal');
+    const chartCtx = document.getElementById('profitChart').getContext('2d');
+
+    let botInterval = null;
+    let sessionProfits = [];
+
+    const chart = new Chart(chartCtx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [{
+          label: 'Profit per Sesi',
+          data: [],
+          borderColor: 'green',
+          tension: 0.2
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: { y: { beginAtZero: true } }
+      }
+    });
+
+    function log(msg) {
+      terminal.innerHTML += `[${new Date().toLocaleTimeString()}] ${msg}<br>`;
+      terminal.scrollTop = terminal.scrollHeight;
+    }
+
+    async function getBalance() {
+      const res = await fetch('/api/get-balances', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token })
+      });
+      const data = await res.json();
+      const shiba = data.balances.find(b => b.currency.toLowerCase() === 'shib');
+      return parseFloat(shiba.amount);
+    }
+
+    document.getElementById('startBtn').onclick = async () => {
+      const baseBet = parseFloat(document.getElementById('baseBet').value);
+      const stopLoss = parseFloat(document.getElementById('stopLoss').value);
+      const profitTarget = parseFloat(document.getElementById('profitTarget').value);
+
+      let balanceAwal = await getBalance();
+      let saldoSesi = balanceAwal;
+      let bet = baseBet;
+
+      log(`Bot mulai... saldo awal: ${balanceAwal}`);
+
+      botInterval = setInterval(async () => {
+        const res = await fetch('/api/place-bet', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            token,
+            amount: bet.toString(),
+            rule: 'under',
+            multiplier: 2,
+            betValue: 49,
+            currency: 'SHIB'
+          })
+        });
+
+        const data = await res.json();
+        const saldoBaru = await getBalance();
+        const profitSesi = saldoBaru - saldoSesi;
+        const totalLoss = saldoBaru - balanceAwal;
+
+        log(`Bet: ${bet} | Win: ${data.win} | Saldo: ${saldoBaru}`);
+
+        if (profitSesi >= profitTarget) {
+          log(`Target profit sesi tercapai: ${profitSesi}, reset sesi.`);
+          sessionProfits.push(profitSesi);
+          updateChart();
+          saldoSesi = saldoBaru;
+          bet = baseBet;
+        } else {
+          bet *= 1.01;
+        }
+
+        if (totalLoss <= -stopLoss) {
+          log(`Stop-loss tercapai. Bot dihentikan.`);
+          clearInterval(botInterval);
+        }
+      }, 2500);
+    };
+
+    document.getElementById('stopBtn').onclick = () => {
+      clearInterval(botInterval);
+      log('Bot dihentikan secara manual.');
+    };
+
+    function updateChart() {
+      const sesi = chart.data.labels.length + 1;
+      chart.data.labels.push('Sesi ' + sesi);
+      chart.data.datasets[0].data.push(sessionProfits[sessionProfits.length - 1]);
+      chart.update();
+    }
+  </script>
+</body>
+</html>
