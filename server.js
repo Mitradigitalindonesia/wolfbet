@@ -36,7 +36,29 @@ res.json({ success: true, user: userData });
     res.status(500).json({ error: 'Server error', detail: error.message });
   }
 });
+// Endpoint untuk ambil saldo user
+app.post('/api/get-balances', async (req, res) => {
+  const { token } = req.body;
 
+  if (!token) return res.status(400).json({ error: 'Token is required' });
+
+  try {
+    const response = await fetch('https://wolfbet.com/api/v1/user/balances', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) {
+      return res.status(response.status).json({ error: 'Invalid token or unable to fetch balances' });
+    }
+
+    const balancesData = await response.json();
+    res.json({ success: true, balances: balancesData });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error', detail: error.message });
+  }
+});
 // Place Bet
 app.post('/api/place-bet', async (req, res) => {
   const { token, amount, rule, multiplier, betValue, currency = 'USDT' } = req.body;
