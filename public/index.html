@@ -153,11 +153,9 @@ function toFixed8(num) {
         try {
           // Tentukan rule dan multiplier
           const chance = randomChance();
-          // Kita pilih rule berdasar chance, contoh:
-          // rule 'under' dengan bet_value = chance, multiplier dihitung 99 / chance (minus house edge 1%)
           const rule = 'under';
           const bet_value = chance;
-          const multiplier = (99 / chance) * 0.99;
+          const multiplier = parseFloat((99 / chance * 0.99).toFixed(2));0.99;
 
           if(currentBet > balance) {
             loginError.textContent = 'Saldo tidak cukup untuk taruhan berikutnya, bot berhenti.';
