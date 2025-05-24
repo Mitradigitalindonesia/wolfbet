@@ -111,7 +111,7 @@
 function toFixed8(num) {
   return Math.floor(num * 1e8) / 1e8;
 }
-  async function placeBet(amount, rule, bet_Value) {
+  async function placeBet(amount, rule, betValue) {
   try {
     const res = await fetch('/api/place-bet', {
       method: 'POST',
@@ -122,7 +122,7 @@ function toFixed8(num) {
         game: 'dice',
         amount: toFixed8(amount),
         rule,
-        bet_value: betValue // cukup ini, tanpa multiplier
+        bet_value: betValue // ini sekarang konsisten dengan parameter
       })
     });
 
@@ -137,7 +137,7 @@ function toFixed8(num) {
     console.error(`[ERROR] placeBet(): ${e.message}`);
     throw e;
   }
-  }
+}
 
     function randomChance() {
       return Math.floor(Math.random() * (55 - 25 + 1)) + 25; // random 25-55
@@ -156,7 +156,7 @@ function toFixed8(num) {
           // Tentukan rule dan multiplier
           const chance = randomChance(); // antara 25-55
 const rule = 'under';
-const bet_value = chance; // tidak perlu multiplier lagi
+const betValue = chance; // tidak perlu multiplier lagi
 
           if(currentBet > balance) {
             loginError.textContent = 'Saldo tidak cukup untuk taruhan berikutnya, bot berhenti.';
