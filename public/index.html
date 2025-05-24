@@ -31,6 +31,7 @@
   <div id="login-form">
     <input id="token-input" placeholder="Masukkan token" />
     <button id="login-btn">Login</button>
+    <button id="autobotx-btn">AutobotX</button>
     <div class="error" id="error-msg"></div>
   </div>
 
@@ -38,6 +39,7 @@
     const loginBtn = document.getElementById('login-btn');
     const tokenInput = document.getElementById('token-input');
     const errorMsg = document.getElementById('error-msg');
+    const autobotxBtn = document.getElementById('autobotx-btn');
 
     loginBtn.onclick = async () => {
       const token = tokenInput.value.trim();
@@ -65,8 +67,8 @@
           localStorage.setItem('username', data.user.username || 'Tidak diketahui');
           localStorage.setItem('userid', data.user.id || 'N/A');
 
-          // Redirect ke dashboard
-          window.location.href = 'dashboard.html';
+          // Redirect dihapus sesuai permintaan
+          errorMsg.textContent = "Login berhasil.";
         } else {
           errorMsg.textContent = data.error || 'Login gagal';
         }
@@ -75,6 +77,14 @@
       } finally {
         loginBtn.disabled = false;
       }
+    };
+
+    tokenInput.addEventListener('input', () => {
+      errorMsg.textContent = '';
+    });
+
+    autobotxBtn.onclick = () => {
+      window.location.href = 'bot.html';
     };
   </script>
 </body>
