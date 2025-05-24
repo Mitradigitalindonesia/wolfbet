@@ -2,234 +2,267 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
-  <title>WolfBet AutobotX</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AutobotX - WolfBet SHIB</title>
   <style>
-    body {
-      font-family: Arial;
-      max-width: 600px;
-      margin: 30px auto;
-      padding: 20px;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-    }
-    h2 { text-align: center; }
-    .section { margin-bottom: 20px; }
-    label, input, button {
-      width: 100%; margin-top: 10px; padding: 8px; box-sizing: border-box;
-    }
-    #log {
-      background: #f0f0f0; padding: 10px; border-radius: 5px;
-      height: 150px; overflow-y: scroll; font-size: 14px; font-family: monospace;
-    }
-    #balance-bar {
-      display: flex; justify-content: space-between; padding: 10px 0; font-weight: bold;
-    }
-    #login-btn {
-      position: absolute;
-      top: 20px;
-      right: 20px;
-      width: 40px; height: 40px;
-      border-radius: 50%;
-      background: #28a745;
-      color: white; border: none;
-      font-size: 18px;
-      cursor: pointer;
-    }
+    body { font-family: Arial, sans-serif; max-width: 600px; margin: 20px auto; padding: 10px; }
+    #login-section, #bot-ui { margin-bottom: 20px; }
+    #balance-pnl { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 10px; }
+    #history { max-height: 150px; overflow-y: auto; background: #f0f0f0; padding: 10px; border-radius: 5px; }
+    button { padding: 10px; margin-right: 10px; }
+    input { padding: 8px; width: 100%; box-sizing: border-box; margin-bottom: 10px; }
+    #login-btn { border-radius: 50%; width: 50px; height: 50px; font-weight: bold; cursor: pointer; }
   </style>
 </head>
 <body>
 
-  <button id="login-btn">🔑</button>
-
-  <h2>AutobotX</h2>
-
-  <div class="section">
-    <label>Token (Bearer)</label>
-    <input type="text" id="manual-token" placeholder="Masukkan token API..." />
+  <div id="login-section">
+    <button id="login-btn" title="Login">L</button>
+    <h2>AutobotX - Login Token</h2>
+    <input id="token-input" placeholder="Masukkan token di sini" />
+    <div id="login-error" style="color:red;"></div>
   </div>
 
-  <div class="section" id="balance-bar">
-    <div>Username: <span id="username">-</span></div>
-    <div>PKL: <span id="pkl">0</span></div>
+  <div id="bot-ui" style="display:none;">
+    <div id="balance-pnl">
+      <div>Balance SHIB: <span id="balance">0</span></div>
+      <div>PNL: <span id="pnl">0</span></div>
+    </div>
+    <canvas id="betChart" width="600" height="200"></canvas>
+    <div style="margin-top:10px;">
+      <button id="start-btn">Start</button>
+      <button id="stop-btn" disabled>Stop</button>
+      <button id="takeprofit-btn">Take Profit</button>
+    </div>
+    <h3>Riwayat Transaksi</h3>
+    <div id="history"></div>
   </div>
 
-  <div class="section">
-    <label>Bet Awal</label>
-    <input type="number" id="base-bet" value="1" min="0.00000001" step="any" />
-
-    <label>Interval (detik)</label>
-    <input type="number" id="interval" value="3" min="1" />
-  </div>
-
-  <div class="section">
-    <canvas id="result-chart" height="100"></canvas>
-  </div>
-
-  <div class="section">
-    <button id="start-btn">Start</button>
-    <button id="stop-btn" disabled>Stop</button>
-    <button id="take-profit-btn">Take Profit</button>
-  </div>
-
-  <div class="section">
-    <h4>Riwayat Taruhan</h4>
-    <div id="log"></div>
-  </div>
-
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
     const loginBtn = document.getElementById('login-btn');
-    const tokenInput = document.getElementById('manual-token');
-    const usernameEl = document.getElementById('username');
-    const pklEl = document.getElementById('pkl');
-    const baseBetInput = document.getElementById('base-bet');
-    const intervalInput = document.getElementById('interval');
-    const logEl = document.getElementById('log');
+    const tokenInput = document.getElementById('token-input');
+    const loginError = document.getElementById('login-error');
+    const botUI = document.getElementById('bot-ui');
+    const balanceSpan = document.getElementById('balance');
+    const pnlSpan = document.getElementById('pnl');
     const startBtn = document.getElementById('start-btn');
     const stopBtn = document.getElementById('stop-btn');
-    const takeProfitBtn = document.getElementById('take-profit-btn');
+    const takeProfitBtn = document.getElementById('takeprofit-btn');
+    const historyDiv = document.getElementById('history');
+    const ctx = document.getElementById('betChart').getContext('2d');
 
-    let botInterval = null;
-    let currentBet = 0;
-    let profit = 0;
-    let round = 0;
-    let baseBet = 0;
-    let chart;
-    let chartData = [];
+    let token = '';
+    let balance = 0;
+    let initialBet = 1;   // SHIB unit, bisa diubah sesuai kebutuhan
+    let currentBet = initialBet;
+    let totalProfit = 0;
+    let isRunning = false;
+    let betsHistory = [];
+    let chart = null;
 
-    const log = msg => {
-      const time = new Date().toLocaleTimeString();
-      logEl.innerHTML += `[${time}] ${msg}<br>`;
-      logEl.scrollTop = logEl.scrollHeight;
-    };
+    // Setup Chart.js line chart
+    function setupChart() {
+      if(chart) chart.destroy();
+      chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: betsHistory.map((_,i) => i + 1),
+          datasets: [{
+            label: 'Profit per Bet (SHIB)',
+            data: betsHistory.map(b => b.profit),
+            borderColor: 'green',
+            backgroundColor: 'rgba(0,128,0,0.1)',
+            fill: true,
+            tension: 0.3
+          }]
+        },
+        options: {
+          scales: { y: { beginAtZero: true } }
+        }
+      });
+    }
 
-    const updateChart = (val) => {
-      chartData.push(val);
-      if (chartData.length > 50) chartData.shift();
-      chart.data.labels = chartData.map((_, i) => i + 1);
-      chart.data.datasets[0].data = chartData;
-      chart.update();
-    };
-
-    loginBtn.onclick = async () => {
-      const token = tokenInput.value.trim();
-      if (!token) return alert('Token tidak boleh kosong');
-
+    async function fetchBalance() {
       try {
-        const res = await fetch('/api/verify-token', {
+        const res = await fetch('/api/get-balances', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ token })
         });
-
         const data = await res.json();
-
-        if (!data.success) {
-          alert('Login gagal: ' + (data.error || 'Token tidak valid'));
-          return;
+        if(data.success && data.balances) {
+          const shibBalanceObj = Object.values(data.balances).find(b => b.currency.toLowerCase() === 'shib');
+          if(shibBalanceObj) {
+            balance = parseFloat(shibBalanceObj.amount);
+            balanceSpan.textContent = balance.toFixed(4);
+            return balance;
+          }
         }
-
-        localStorage.setItem('token', token);
-        usernameEl.textContent = data.user.username || 'Unknown';
-        log('Login berhasil sebagai ' + data.user.username);
-      } catch (err) {
-        alert('Terjadi kesalahan saat login');
+        throw new Error('Gagal mengambil balance SHIB');
+      } catch (e) {
+        loginError.textContent = e.message;
+        return 0;
       }
-    };
+    }
 
-    const placeBet = async (token) => {
-      const chance = Math.floor(Math.random() * (55 - 25 + 1)) + 25;
-      const rule = Math.random() > 0.5 ? 'over' : 'under';
-      const betValue = rule === 'over' ? 100 - chance : chance;
-      const multiplier = 99 / chance;
-
+    async function placeBet(amount, rule, multiplier, bet_value) {
       try {
-        const res = await fetch('/api/place-bet', {
+        const res = await fetch('/api/bet', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             token,
-            currency: 'btc',
+            currency: 'shib',
             game: 'dice',
-            amount: currentBet,
+            amount,
             rule,
             multiplier,
-            bet_value: betValue
+            bet_value
           })
         });
-
-        const result = await res.json();
-        const payout = result.bet.payout || 0;
-        const profitChange = payout - currentBet;
-        profit += profitChange;
-        round += 1;
-
-        log(`${rule} ${chance}% → ${payout ? 'Win' : 'Loss'} | Profit: ${profit.toFixed(8)}`);
-        updateChart(profit);
-        pklEl.textContent = profit.toFixed(8);
-
-        if (profit >= baseBet * 3) {
-          currentBet = baseBet;
-          profit = 0;
-          log('Take Profit 3x tercapai, reset ke base bet');
-        } else {
-          currentBet += baseBet * 0.01;
+        const data = await res.json();
+        if(data.bet) {
+          return data.bet;
         }
+        throw new Error(data.error || 'Gagal melakukan taruhan');
+      } catch (e) {
+        throw e;
+      }
+    }
 
-      } catch (err) {
-        log('Error saat bet: ' + err.message);
+    function randomChance() {
+      return Math.floor(Math.random() * (55 - 25 + 1)) + 25; // random 25-55
+    }
+
+    async function startBot() {
+      isRunning = true;
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+      loginError.textContent = '';
+      totalProfit = 0;
+      currentBet = initialBet;
+
+      while (isRunning) {
+        try {
+          // Tentukan rule dan multiplier
+          const chance = randomChance();
+          // Kita pilih rule berdasar chance, contoh:
+          // rule 'under' dengan bet_value = chance, multiplier dihitung 99 / chance (minus house edge 1%)
+          const rule = 'under';
+          const bet_value = chance;
+          const multiplier = (99 / chance) * 0.99;
+
+          if(currentBet > balance) {
+            loginError.textContent = 'Saldo tidak cukup untuk taruhan berikutnya, bot berhenti.';
+            stopBot();
+            break;
+          }
+
+          const betResult = await placeBet(currentBet, rule, multiplier, bet_value);
+          // Update balance dan total profit
+          balance = parseFloat(betResult.user_balance.amount);
+          balanceSpan.textContent = balance.toFixed(4);
+
+          // Hitung profit (positif atau negatif)
+          const profit = parseFloat(betResult.profit || 0);
+          totalProfit += profit;
+          pnlSpan.textContent = totalProfit.toFixed(4);
+
+          // Catat riwayat
+          betsHistory.push({
+            profit,
+            amount: currentBet,
+            result: betResult.state
+          });
+          updateHistory();
+          setupChart();
+
+          // Sistem martingale 1%:
+          if(profit < 0) {
+            currentBet = currentBet * 1.01; // naik 1% dari taruhan sebelumnya jika kalah
+          } else {
+            currentBet = currentBet * 0.99; // turun 1% jika menang
+          }
+
+          // Reset ke bet awal kalau profit total sudah 3x bet awal
+          if(totalProfit >= initialBet * 3) {
+            currentBet = initialBet;
+            totalProfit = 0;
+          }
+
+          // Delay 1.5 detik antara taruhan (bisa sesuaikan)
+          await new Promise(r => setTimeout(r, 1500));
+        } catch (e) {
+          loginError.textContent = 'Error saat bet: ' + e.message;
+          stopBot();
+          break;
+        }
+      }
+    }
+
+    function stopBot() {
+      isRunning = false;
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+    }
+
+    function updateHistory() {
+      historyDiv.innerHTML = '';
+      for(let i = betsHistory.length - 1; i >= 0; i--) {
+        const b = betsHistory[i];
+        const color = b.profit > 0 ? 'green' : 'red';
+        historyDiv.innerHTML += `<div style="color:${color}">Bet ${b.amount.toFixed(4)} - ${b.result.toUpperCase()} - Profit: ${b.profit.toFixed(4)}</div>`;
+      }
+    }
+
+    loginBtn.onclick = async () => {
+      loginError.textContent = '';
+      token = tokenInput.value.trim();
+      if(!token) {
+        loginError.textContent = 'Token tidak boleh kosong.';
+        return;
+      }
+      try {
+        const bal = await fetchBalance();
+        if(bal > 0) {
+          initialBet = bal * 0.01; // 1% dari balance SHIB
+          currentBet = initialBet;
+          pnlSpan.textContent = '0';
+          betsHistory = [];
+          updateHistory();
+          setupChart();
+          botUI.style.display = 'block';
+          loginError.textContent = '';
+          alert('Login berhasil, saldo SHIB: ' + bal.toFixed(4));
+        } else {
+          loginError.textContent = 'Gagal mendapatkan saldo SHIB.';
+        }
+      } catch (e) {
+        loginError.textContent = 'Error saat login: ' + e.message;
       }
     };
 
-    startBtn.onclick = async () => {
-      const token = localStorage.getItem('token');
-      baseBet = parseFloat(baseBetInput.value);
-      currentBet = baseBet;
-
-      if (!token || !baseBet) {
-        alert('Token dan Bet awal wajib diisi');
-        return;
-      }
-
-      startBtn.disabled = true;
-      stopBtn.disabled = false;
-
-      botInterval = setInterval(() => {
-        placeBet(token);
-      }, parseInt(intervalInput.value) * 1000);
+    startBtn.onclick = () => {
+      if(!isRunning) startBot();
     };
 
     stopBtn.onclick = () => {
-      clearInterval(botInterval);
-      botInterval = null;
-      startBtn.disabled = false;
-      stopBtn.disabled = true;
-      log('Bot dihentikan');
+      if(isRunning) stopBot();
     };
 
     takeProfitBtn.onclick = () => {
-      profit = 0;
-      currentBet = baseBet;
-      log('Manual Take Profit: reset ke base bet');
+      if(isRunning) {
+        alert('Bot dihentikan dan profit diambil.');
+        stopBot();
+        pnlSpan.textContent = '0';
+        betsHistory = [];
+        updateHistory();
+        setupChart();
+      }
     };
 
-    // Inisialisasi grafik Chart.js
-    chart = new Chart(document.getElementById('result-chart'), {
-      type: 'line',
-      data: {
-        labels: [],
-        datasets: [{
-          label: 'Profit',
-          data: [],
-          borderColor: 'green',
-          tension: 0.3
-        }]
-      },
-      options: {
-        responsive: true,
-        scales: { y: { beginAtZero: true } }
-      }
-    });
   </script>
+
 </body>
 </html>
