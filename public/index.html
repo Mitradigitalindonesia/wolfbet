@@ -61,6 +61,9 @@
     let betsHistory = [];
     let chart = null;
 
+    function calculateMultiplier(chance) {
+  return +(99 / chance).toFixed(2); // 2 desimal seperti disyaratkan API
+}
     // Setup Chart.js line chart
     function setupChart() {
       if(chart) chart.destroy();
@@ -153,9 +156,9 @@ function toFixed8(num) {
         try {
           // Tentukan rule dan multiplier
           const chance = randomChance();
-          const rule = 'under';
-          const bet_value = chance;
-          const multiplier = parseFloat((99 / chance * 0.99).toFixed(2));0.99;
+const rule = 'under';
+const bet_value = chance;
+const multiplier = calculateMultiplier(chance);
 
           if(currentBet > balance) {
             loginError.textContent = 'Saldo tidak cukup untuk taruhan berikutnya, bot berhenti.';
