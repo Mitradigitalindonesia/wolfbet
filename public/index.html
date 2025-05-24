@@ -93,31 +93,36 @@
     }
 
     async function placeBet(amount, rule, betValue) {
-      try {
-        const res = await fetch('/api/place-bet', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            token,
-            currency: 'shib',
-            game: 'dice',
-            amount: toFixed8(amount),
-            rule,
-            betvalue: betValue
-          })
-        });
+  try {
+    const payload = {
+      token,
+      currency: 'shib',
+      game: 'dice',
+      amount: toFixed8(amount),
+      rule,
+      bet_value: betValue
+    };
 
-        if (!res.ok) {
-          const text = await res.text();
-          throw new Error(`Status ${res.status}: ${text}`);
-        }
+    console.log("Sending bet with data:", payload);
 
-        return await res.json();
-      } catch (e) {
-        console.error(`[ERROR] placeBet(): ${e.message}`);
-        throw e;
-      }
+    const res = await fetch('/api/place-bet', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Status ${res.status}: ${text}`);
     }
+
+    const data = await res.json();
+    return data;
+  } catch (e) {
+    console.error(`[ERROR] placeBet(): ${e.message}`);
+    throw e;
+  }
+}
 
     function setupChart() {
       if (chart) chart.destroy();
