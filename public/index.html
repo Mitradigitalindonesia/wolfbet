@@ -63,15 +63,48 @@
     checkBalanceBtn.style.display = 'none'; // sembunyikan tombol cek saldo awalnya
 
     loginBtn.onclick = async () => {
-      const token = tokenInput.value.trim();
-      if (!token) {
-        errorMsg.textContent = "Token wajib diisi";
-        return;
-      }
+  const token = tokenInput.value.trim();
+  if (!token) {
+    errorMsg.textContent = "Token wajib diisi";
+    return;
+  }
 
-      loginBtn.disabled = true;
-      errorMsg.textContent = "Loading...";
+  loginBtn.onclick = async () => {
+  const token = tokenInput.value.trim();
+  if (!token) {
+    errorMsg.textContent = "Token wajib diisi";
+    return;
+  }
 
+  loginBtn.disabled = true;
+  errorMsg.textContent = "Loading...";
+
+  try {
+    const res = await fetch('/api/verify-token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token })
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      // Simpan token ke localStorage agar bisa dipakai di dashboard
+      localStorage.setItem('token', token);
+      localStorage.setItem('username', data.user.username || 'Tidak diketahui');
+      localStorage.setItem('userid', data.user.id || 'N/A');
+
+      // Redirect ke dashboard
+      window.location.href = 'dashboard.html';
+    } else {
+      errorMsg.textContent = data.error || 'Login gagal';
+    }
+  } catch (e) {
+    errorMsg.textContent = "Terjadi kesalahan jaringan.";
+  } finally {
+    loginBtn.disabled = false;
+  }
+};
       try {
         const res = await fetch('/api/verify-token', {
           method: 'POST',
