@@ -54,7 +54,7 @@
 
     let token = '';
     let balance = 0;
-    let initialBet = 1;   // SHIB unit, bisa diubah sesuai kebutuhan
+    let initialBet = 10;   // SHIB unit, bisa diubah sesuai kebutuhan
     let currentBet = initialBet;
     let totalProfit = 0;
     let isRunning = false;
@@ -106,30 +106,33 @@
       }
     }
 
-    async function placeBet(amount, rule, multiplier, bet_value) {
-      try {
-        const res = await fetch('/api/bet', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            token,
-            currency: 'shib',
-            game: 'dice',
-            amount,
-            rule,
-            multiplier,
-            bet_value
-          })
-        });
-        const data = await res.json();
-        if(data.bet) {
-          return data.bet;
-        }
-        throw new Error(data.error || 'Gagal melakukan taruhan');
-      } catch (e) {
-        throw e;
-      }
+  async function placeBet(amount, rule, multiplier, betValue) {
+  try {
+    const res = await fetch('/api/place-bet', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        token,
+        currency: 'shib',
+        game: 'dice',
+        amount,
+        rule,
+        multiplier,
+        betValue // ← penting: camelCase karena backend-mu pakai ini
+      })
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Status ${res.status}: ${text}`);
     }
+
+    const data = await res.json();
+    return data.bet;
+  } catch (e) {
+    throw e;
+  }
+}
 
     function randomChance() {
       return Math.floor(Math.random() * (55 - 25 + 1)) + 25; // random 25-55
@@ -182,7 +185,7 @@
           if(profit < 0) {
             currentBet = currentBet * 1.01; // naik 1% dari taruhan sebelumnya jika kalah
           } else {
-            currentBet = currentBet * 0.99; // turun 1% jika menang
+            currentBet = currentBet * 1.01; // turun 1% jika menang
           }
 
           // Reset ke bet awal kalau profit total sudah 3x bet awal
