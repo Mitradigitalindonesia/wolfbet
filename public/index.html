@@ -100,32 +100,33 @@
       }
     };
 
-    checkBalanceBtn.onclick = async () => {
-      balanceInfo.textContent = 'Loading saldo...';
-      try {
-        const res = await fetch('/api/get-balances', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token: tokenInput.value.trim() })
-        });
+checkBalanceBtn.onclick = async () => {
+  balanceInfo.textContent = 'Memuat saldo...';
+  try {
+    const res = await fetch('/api/get-balances', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: tokenInput.value.trim() })
+    });
 
-        const data = await res.json();
+    const data = await res.json();
 
-        if (data.success && data.balances) {
-          // Misal mau tampilkan semua saldo:
-          const balances = data.balances;
-          let balanceText = 'Saldo: <br>';
-          for (const [currency, amount] of Object.entries(balances)) {
-            balanceText += `${currency.toUpperCase()}: ${amount}<br>`;
-          }
-          balanceInfo.innerHTML = balanceText;
-        } else {
-          balanceInfo.textContent = data.error || 'Gagal mengambil saldo';
-        }
-      } catch (e) {
-        balanceInfo.textContent = 'Terjadi kesalahan jaringan saat mengambil saldo';
+    if (data.success && data.balances) {
+      // Temukan saldo SHIB
+      const shiba = data.balances.find(b => b.currency.toLowerCase() === 'shib');
+
+      if (shiba) {
+        balanceInfo.innerHTML = `Saldo SHIB: ${shiba.amount}`;
+      } else {
+        balanceInfo.innerHTML = 'Saldo SHIB tidak ditemukan.';
       }
-    };
+    } else {
+      balanceInfo.textContent = data.error || 'Gagal mengambil saldo';
+    }
+  } catch (e) {
+    balanceInfo.textContent = 'Terjadi kesalahan jaringan saat mengambil saldo';
+  }
+};
 
     logoutBtn.onclick = () => {
       userInfo.style.display = 'none';
