@@ -29,13 +29,13 @@ app.post('/api/place-bet', async (req, res) => {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        currency: 'btc',
-        game: 'dice',
-        amount,
-        rule,
-        multiplier,
-        bet_value: betValue
-      })
+  currency,
+  game: 'dice',
+  amount,
+  rule,
+  multiplier,
+  bet_value: betValue
+})
     });
 
     const data = await response.json();
