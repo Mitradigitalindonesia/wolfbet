@@ -54,7 +54,7 @@ app.post('/api/get-balances', async (req, res) => {
     }
 
     const balancesData = await response.json();
-    res.json({ success: true, balances: balancesData });
+    res.json({ success: true, balances: balancesData.balances });
   } catch (error) {
     res.status(500).json({ error: 'Server error', detail: error.message });
   }
