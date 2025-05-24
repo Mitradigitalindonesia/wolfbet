@@ -61,12 +61,12 @@
     let betsHistory = [];
     let chart = null;
 
-    function toFixed8(num) {
-      return Math.floor(num * 1e8) / 1e8;
+    function calculateMultiplier(chance) {
+      return parseFloat(((99 / chance) * 0.99).toFixed(4));
     }
 
-    function randomChance() {
-      return Math.floor(Math.random() * (55 - 25 + 1)) + 25;
+    function toFixed8(num) {
+      return Math.floor(num * 1e8) / 1e8;
     }
 
     async function fetchBalance() {
@@ -77,13 +77,11 @@
           body: JSON.stringify({ token })
         });
         const data = await res.json();
-        if (data.success && data.balances) {
-          const shibBalanceObj = Object.values(data.balances).find(b => b.currency.toLowerCase() === 'shib');
-          if (shibBalanceObj) {
-            balance = parseFloat(shibBalanceObj.amount);
-            balanceSpan.textContent = balance.toFixed(4);
-            return balance;
-          }
+        const shibBalanceObj = Object.values(data.balances).find(b => b.currency.toLowerCase() === 'shib');
+        if (shibBalanceObj) {
+          balance = parseFloat(shibBalanceObj.amount);
+          balanceSpan.textContent = balance.toFixed(4);
+          return balance;
         }
         throw new Error('Gagal mengambil balance SHIB');
       } catch (e) {
@@ -92,57 +90,31 @@
       }
     }
 
-    async function placeBet(amount, rule, betValue) {
-  try {
-    const payload = {
-      token,
-      currency: 'shib',
-      game: 'dice',
-      amount: toFixed8(amount),
-      rule,
-      bet_value: betValue
-    };
-
-    console.log("Sending bet with data:", payload);
-
-    const res = await fetch('/api/place-bet', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`Status ${res.status}: ${text}`);
+    async function placeBet(amount, rule, multiplier, betValue) {
+      try {
+        const res = await fetch('/api/place-bet', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            token,
+            currency: 'shib',
+            game: 'dice',
+            amount: toFixed8(amount),
+            rule,
+            multiplier,
+            bet_value: betValue
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Gagal melakukan bet');
+        return data;
+      } catch (e) {
+        throw e;
+      }
     }
 
-    const data = await res.json();
-    return data;
-  } catch (e) {
-    console.error(`[ERROR] placeBet(): ${e.message}`);
-    throw e;
-  }
-}
-
-    function setupChart() {
-      if (chart) chart.destroy();
-      chart = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: betsHistory.map((_, i) => i + 1),
-          datasets: [{
-            label: 'Profit per Bet (SHIB)',
-            data: betsHistory.map(b => b.profit),
-            borderColor: 'green',
-            backgroundColor: 'rgba(0,128,0,0.1)',
-            fill: true,
-            tension: 0.3
-          }]
-        },
-        options: {
-          scales: { y: { beginAtZero: true } }
-        }
-      });
+    function randomChance() {
+      return Math.floor(Math.random() * (55 - 25 + 1)) + 25;
     }
 
     async function startBot() {
@@ -158,14 +130,15 @@
           const chance = randomChance();
           const rule = 'under';
           const betValue = chance;
+          const multiplier = calculateMultiplier(chance);
 
           if (currentBet > balance) {
-            loginError.textContent = 'Saldo tidak cukup untuk taruhan berikutnya, bot berhenti.';
+            loginError.textContent = 'Saldo tidak cukup. Bot dihentikan.';
             stopBot();
             break;
           }
 
-          const betResult = await placeBet(currentBet, rule, betValue);
+          const betResult = await placeBet(currentBet, rule, multiplier, betValue);
           balance = parseFloat(betResult.user_balance.amount);
           balanceSpan.textContent = balance.toFixed(4);
 
@@ -177,7 +150,7 @@
           updateHistory();
           setupChart();
 
-          currentBet = currentBet * 1.01;
+          currentBet *= 1.01;
 
           if (totalProfit >= initialBet * 3) {
             currentBet = initialBet;
@@ -252,7 +225,32 @@
         setupChart();
       }
     };
-  </script>
 
+    function setupChart() {
+      if (chart) chart.destroy();
+      chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: betsHistory.map((_, i) => i + 1),
+          datasets: [{
+            label: 'Profit per Bet (SHIB)',
+            data: betsHistory.map(b => b.profit),
+            borderColor: 'green',
+            backgroundColor: 'rgba(0,128,0,0.1)',
+            fill: true,
+            tension: 0.3
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: {
+              beginAtZero: true
+            }
+          }
+        }
+      });
+    }
+  </script>
 </body>
 </html>
