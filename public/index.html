@@ -105,7 +105,9 @@
         return 0;
       }
     }
-
+function toFixed8(num) {
+  return Math.floor(num * 1e8) / 1e8;
+}
   async function placeBet(amount, rule, multiplier, betValue) {
   try {
     const res = await fetch('/api/place-bet', {
@@ -115,10 +117,10 @@
         token,
         currency: 'shib',
         game: 'dice',
-        amount,
+        amount: toFixed8(amount), // atau toFixed3 jika kamu lebih suka
         rule,
         multiplier,
-        betValue // ← penting: camelCase karena backend-mu pakai ini
+        betValue
       })
     });
 
@@ -128,11 +130,12 @@
     }
 
     const data = await res.json();
-    return data.bet;
+    return data; // ← kembalikan seluruh respons, bukan hanya data.bet
   } catch (e) {
+    console.error(`[ERROR] placeBet(): ${e.message}`);
     throw e;
   }
-}
+  }
 
     function randomChance() {
       return Math.floor(Math.random() * (55 - 25 + 1)) + 25; // random 25-55
