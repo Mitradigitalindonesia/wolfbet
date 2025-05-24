@@ -2,150 +2,246 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>WolfBet Login</title>
+  <title>AutobotX</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
       font-family: Arial;
-      max-width: 400px;
-      margin: 40px auto;
+      max-width: 600px;
+      margin: 30px auto;
       padding: 20px;
       border: 1px solid #ccc;
       border-radius: 8px;
     }
     h2 { text-align: center; }
-    input, button {
-      width: 100%;
-      padding: 10px;
-      margin-top: 10px;
+    .section { margin-bottom: 20px; }
+    label, input, select, button {
+      width: 100%; margin-top: 10px; padding: 8px; box-sizing: border-box;
     }
-    .error {
-      color: red;
-      text-align: center;
-      margin-top: 10px;
+    #log {
+      background: #f0f0f0; padding: 10px; border-radius: 5px;
+      height: 150px; overflow-y: scroll; font-size: 14px; font-family: monospace;
     }
-    .user-info {
-      background: #e0ffe0;
-      padding: 10px;
-      border-radius: 5px;
-      margin-top: 20px;
-    }
-    #check-balance-btn {
-      display: none;
-      margin-top: 10px;
-    }
-    #balance-info {
-      margin-top: 10px;
-      font-weight: bold;
+    #balance-bar {
+      display: flex; justify-content: space-between; padding: 10px 0; font-weight: bold;
     }
   </style>
 </head>
 <body>
-  <h2>Login dengan API Token</h2>
-  <div id="login-form">
-    <input id="token-input" placeholder="Masukkan token" />
-    <button id="login-btn">Login</button>
-    <div class="error" id="error-msg"></div>
+  <h2>WolfBet AutobotX</h2>
+<div style="text-align: right; margin-bottom: 10px;">
+  <button id="login-btn" style="
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #28a745;
+    color: white;
+    border: none;
+    font-size: 16px;
+    cursor: pointer;
+  ">🔑</button>
+</div>
+
+<div class="section">
+  <label>Token (Bearer)</label>
+  <input type="text" id="manual-token" placeholder="Masukkan token API..." />
+</div>
+  <div class="section" id="balance-bar">
+    <div>Balance: <span id="balance">-</span></div>
+    <div>PNL: <span id="PNL">0</span></div>
   </div>
 
-  <div class="user-info" id="user-info" style="display:none;">
-    <p><strong>Username:</strong> <span id="username"></span></p>
-    <p><strong>User ID:</strong> <span id="userid"></span></p>
-    <button id="logout-btn" style="background:red;color:white;">Logout</button>
+  <div class="section">
+    <label>Token</label>
+    <select id="token-select"></select>
+
+    <label>Bet Awal</label>
+    <input type="number" id="base-bet" value="1" min="0.00000001" step="any" />
+
+    <label>Interval (detik)</label>
+    <input type="number" id="interval" value="3" min="1" />
   </div>
 
-  <button id="check-balance-btn">Cek Saldo</button>
-  <div id="balance-info"></div>
+  <div class="section">
+    <canvas id="result-chart" height="100"></canvas>
+  </div>
+
+  <div class="section">
+    <button id="start-btn">Start</button>
+    <button id="stop-btn" disabled>Stop</button>
+    <button id="take-profit-btn">Take Profit</button>
+  </div>
+
+  <div class="section">
+    <h4>Riwayat Taruhan</h4>
+    <div id="log"></div>
+  </div>
 
   <script>
-    const loginBtn = document.getElementById('login-btn');
-    const tokenInput = document.getElementById('token-input');
-    const errorMsg = document.getElementById('error-msg');
-    const userInfo = document.getElementById('user-info');
-    const usernameSpan = document.getElementById('username');
-    const useridSpan = document.getElementById('userid');
-    const logoutBtn = document.getElementById('logout-btn');
-    const checkBalanceBtn = document.getElementById('check-balance-btn');
-    const balanceInfo = document.getElementById('balance-info');
-    const loginForm = document.getElementById('login-form');
+  document.getElementById('login-btn').onclick = () => {
+  const inputToken = document.getElementById('manual-token').value.trim();
+  if (!inputToken) return alert('Token tidak boleh kosong');
+  localStorage.setItem('token', inputToken);
+  alert('Token disimpan. Siap digunakan.');
+};
+    const tokenSelect = document.getElementById('token-select');
+    const balanceEl = document.getElementById('balance');
+    const pklEl = document.getElementById('pkl');
+    const baseBetInput = document.getElementById('base-bet');
+    const intervalInput = document.getElementById('interval');
+    const logEl = document.getElementById('log');
+    const startBtn = document.getElementById('start-btn');
+    const stopBtn = document.getElementById('stop-btn');
+    const takeProfitBtn = document.getElementById('take-profit-btn');
 
-    checkBalanceBtn.style.display = 'none';
+    let botInterval = null;
+    let currentBet = 0;
+    let profit = 0;
+    let round = 0;
+    let baseBet = 0;
+    let chart;
+    let chartData = [];
 
-    loginBtn.onclick = async () => {
-      const token = tokenInput.value.trim();
-      if (!token) {
-        errorMsg.textContent = "Token wajib diisi";
+    // Dummy: ambil semua token dari localStorage
+    const savedToken = localStorage.getItem('token');
+    if (savedToken) {
+      const option = document.createElement('option');
+      option.value = savedToken;
+      option.textContent = savedToken.slice(0, 10) + '...';
+      tokenSelect.appendChild(option);
+    }
+    const token = localStorage.getItem('token');
+
+    const log = msg => {
+      const time = new Date().toLocaleTimeString();
+      logEl.innerHTML += `[${time}] ${msg}<br>`;
+      logEl.scrollTop = logEl.scrollHeight;
+    };
+
+    const updateChart = (val) => {
+      chartData.push(val);
+      if (chartData.length > 50) chartData.shift();
+      chart.data.labels = chartData.map((_, i) => i + 1);
+      chart.data.datasets[0].data = chartData;
+      chart.update();
+    };
+
+    const fetchBalance = async (token) => {
+      try {
+        const res = await fetch('https://wolfbet.com/api/v1/user/balances', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        const balanceObj = data.data.find(b => b.currency === 'btc');
+        return balanceObj ? balanceObj.amount : 0;
+      } catch {
+        return 0;
+      }
+    };
+
+    const placeBet = async (token) => {
+      const chance = Math.floor(Math.random() * (55 - 25 + 1)) + 25;
+      const rule = Math.random() > 0.5 ? 'over' : 'under';
+      const betValue = rule === 'over' ? 100 - chance : chance;
+      const multiplier = 99 / chance;
+
+      try {
+        const res = await fetch('https://wolfbet.com/api/v1/bet', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            currency: 'btc',
+            game: 'dice',
+            amount: currentBet,
+            rule,
+            multiplier,
+            bet_value: betValue
+          })
+        });
+
+        const result = await res.json();
+        const payout = result.bet.payout || 0;
+        const profitChange = payout - currentBet;
+        profit += profitChange;
+        round += 1;
+
+        // Update UI
+        log(`${rule} ${chance}% → ${payout ? 'Win' : 'Loss'} | Profit: ${profit.toFixed(8)}`);
+        updateChart(profit);
+        balanceEl.textContent = result.user_balance.btc;
+        pklEl.textContent = profit.toFixed(8);
+
+        // Cek apakah reset ke base bet
+        if (profit >= baseBet * 3) {
+          currentBet = baseBet;
+          profit = 0;
+          log('Take Profit 3x tercapai, reset ke base bet');
+        } else {
+          currentBet += baseBet * 0.01;
+        }
+
+      } catch (err) {
+        log('Error bet: ' + err.message);
+      }
+    };
+
+    startBtn.onclick = async () => {
+      const token = tokenSelect.value;
+      baseBet = parseFloat(baseBetInput.value);
+      currentBet = baseBet;
+
+      if (!token || !baseBet) {
+        alert('Token dan Bet awal wajib diisi');
         return;
       }
 
-      loginBtn.disabled = true;
-      errorMsg.textContent = "Loading...";
+      const balance = await fetchBalance(token);
+      balanceEl.textContent = balance;
 
-      try {
-        const res = await fetch('/api/verify-token', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token })
-        });
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
 
-        const data = await res.json();
+      botInterval = setInterval(() => {
+        placeBet(token);
+      }, parseInt(intervalInput.value) * 1000);
+    };
 
-        if (data.success) {
-          localStorage.setItem('token', token);
-          usernameSpan.textContent = data.user.username || 'Tidak diketahui';
-          useridSpan.textContent = data.user.id || 'N/A';
-          userInfo.style.display = 'block';
-          loginForm.style.display = 'none';
-          checkBalanceBtn.style.display = 'block';
-          balanceInfo.textContent = '';
-          errorMsg.textContent = '';
-        } else {
-          errorMsg.textContent = data.error || 'Login gagal';
+    stopBtn.onclick = () => {
+      clearInterval(botInterval);
+      botInterval = null;
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+      log('Bot dihentikan');
+    };
+
+    takeProfitBtn.onclick = () => {
+      profit = 0;
+      currentBet = baseBet;
+      log('Manual Take Profit: reset ke base bet');
+    };
+
+    // Inisialisasi Chart
+    chart = new Chart(document.getElementById('result-chart'), {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [{
+          label: 'Profit',
+          data: [],
+          borderColor: 'green',
+          tension: 0.3
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          y: { beginAtZero: true }
         }
-      } catch (e) {
-        errorMsg.textContent = "Terjadi kesalahan jaringan.";
-      } finally {
-        loginBtn.disabled = false;
       }
-    };
-
-    checkBalanceBtn.onclick = async () => {
-      balanceInfo.textContent = 'Loading saldo...';
-      const token = localStorage.getItem('token');
-      try {
-        const res = await fetch('/api/get-balances', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token })
-        });
-
-        const data = await res.json();
-
-        if (data.success && Array.isArray(data.balances)) {
-          let balanceText = 'Saldo:<br>';
-          for (const balance of data.balances) {
-            const currency = balance.currency || '???';
-            const amount = balance.amount || 0;
-            balanceText += `${currency.toUpperCase()}: ${amount}<br>`;
-          }
-          balanceInfo.innerHTML = balanceText;
-        } else {
-          balanceInfo.textContent = data.error || 'Gagal mengambil saldo';
-        }
-      } catch (e) {
-        balanceInfo.textContent = 'Terjadi kesalahan jaringan saat mengambil saldo';
-      }
-    };
-
-    logoutBtn.onclick = () => {
-      userInfo.style.display = 'none';
-      loginForm.style.display = 'block';
-      checkBalanceBtn.style.display = 'none';
-      balanceInfo.textContent = '';
-      tokenInput.value = '';
-      errorMsg.textContent = '';
-      localStorage.removeItem('token');
-    };
+    });
   </script>
 </body>
 </html>
