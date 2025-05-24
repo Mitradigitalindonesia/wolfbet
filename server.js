@@ -30,7 +30,8 @@ app.post('/api/verify-token', async (req, res) => {
     }
 
     const userData = await response.json();
-    res.json({ success: true, user: userData });
+console.log('User profile data:', userData);  // <- ini penting
+res.json({ success: true, user: userData });
   } catch (error) {
     res.status(500).json({ error: 'Server error', detail: error.message });
   }
