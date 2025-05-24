@@ -21,6 +21,14 @@
     .user-info {
       background: #e0ffe0; padding: 10px; border-radius: 5px; margin-top: 20px;
     }
+    #check-balance-btn {
+      display: none;
+      margin-top: 10px;
+    }
+    #balance-info {
+      margin-top: 10px;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
@@ -37,18 +45,29 @@
     <button id="logout-btn" style="background:red;color:white;">Logout</button>
   </div>
 
+  <button id="check-balance-btn">Cek Saldo</button>
+  <div id="balance-info"></div>
+
   <script>
     const loginBtn = document.getElementById('login-btn');
     const tokenInput = document.getElementById('token-input');
     const errorMsg = document.getElementById('error-msg');
     const userInfo = document.getElementById('user-info');
-    const username = document.getElementById('username');
-    const userid = document.getElementById('userid');
+    const usernameSpan = document.getElementById('username');
+    const useridSpan = document.getElementById('userid');
     const logoutBtn = document.getElementById('logout-btn');
+    const checkBalanceBtn = document.getElementById('check-balance-btn');
+    const balanceInfo = document.getElementById('balance-info');
+    const loginForm = document.getElementById('login-form');
+
+    checkBalanceBtn.style.display = 'none'; // sembunyikan tombol cek saldo awalnya
 
     loginBtn.onclick = async () => {
       const token = tokenInput.value.trim();
-      if (!token) return errorMsg.textContent = "Token wajib diisi";
+      if (!token) {
+        errorMsg.textContent = "Token wajib diisi";
+        return;
+      }
 
       loginBtn.disabled = true;
       errorMsg.textContent = "Loading...";
@@ -59,25 +78,60 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ token })
         });
+
         const data = await res.json();
+
         if (data.success) {
-          username.textContent = data.user.username || 'Tidak diketahui';
-          userid.textContent = data.user.id || 'N/A';
+          usernameSpan.textContent = data.user.username || 'Tidak diketahui';
+          useridSpan.textContent = data.user.id || 'N/A';
           userInfo.style.display = 'block';
-          loginBtn.style.display = 'none';
+          loginForm.style.display = 'none';
+
+          checkBalanceBtn.style.display = 'block'; // tampilkan tombol cek saldo
+          balanceInfo.textContent = '';
+          errorMsg.textContent = '';
         } else {
           errorMsg.textContent = data.error || 'Login gagal';
         }
-      } catch {
+      } catch (e) {
         errorMsg.textContent = "Terjadi kesalahan jaringan.";
       } finally {
         loginBtn.disabled = false;
       }
     };
 
+    checkBalanceBtn.onclick = async () => {
+      balanceInfo.textContent = 'Loading saldo...';
+      try {
+        const res = await fetch('/api/get-balances', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: tokenInput.value.trim() })
+        });
+
+        const data = await res.json();
+
+        if (data.success && data.balances) {
+          // Misal mau tampilkan semua saldo:
+          const balances = data.balances;
+          let balanceText = 'Saldo: <br>';
+          for (const [currency, amount] of Object.entries(balances)) {
+            balanceText += `${currency.toUpperCase()}: ${amount}<br>`;
+          }
+          balanceInfo.innerHTML = balanceText;
+        } else {
+          balanceInfo.textContent = data.error || 'Gagal mengambil saldo';
+        }
+      } catch (e) {
+        balanceInfo.textContent = 'Terjadi kesalahan jaringan saat mengambil saldo';
+      }
+    };
+
     logoutBtn.onclick = () => {
       userInfo.style.display = 'none';
-      loginBtn.style.display = 'block';
+      loginForm.style.display = 'block';
+      checkBalanceBtn.style.display = 'none';
+      balanceInfo.textContent = '';
       tokenInput.value = '';
       errorMsg.textContent = '';
     };
