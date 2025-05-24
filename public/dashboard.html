@@ -92,17 +92,6 @@
 
     .profit { color: green; }
     .lose { color: red; }
-    .badge {
-      display: inline-block;
-      padding: 2px 8px;
-      font-size: 12px;
-      border-radius: 4px;
-      color: white;
-      margin-left: 10px;
-    }
-
-    .badge.profit { background: green; }
-    .badge.lose { background: red; }
   </style>
 </head>
 <body>
@@ -117,17 +106,14 @@
       <label for="base-bet-percent">Bet Awal (% Saldo)</label>
       <input type="number" id="base-bet-percent" min="0.1" max="100" step="0.1" value="1" />
     </div>
-
     <div>
       <label for="tp">Take Profit (SHIB)</label>
       <input type="number" id="tp" min="0" step="0.1" value="10" />
     </div>
-
     <div>
       <label for="sl">Stop Loss (SHIB)</label>
       <input type="number" id="sl" min="0" step="0.1" value="5" />
     </div>
-
     <div style="align-self: end;">
       <button id="start-stop-btn">Start</button>
     </div>
@@ -163,8 +149,15 @@
 
   userInfoDiv.textContent = `User: ${username} (ID: ${userid})`;
 
-  let balances = {};
   let balanceSHIB = 0;
+  let botRunning = false;
+  let baseBet = 0;
+  let currentBet = 0;
+  let multiplier = 2;
+  let rule = 'under';
+  let betValue = 49;
+  let profit = 0;
+  let sessionProfit = 0;
 
   async function fetchBalances() {
     try {
@@ -174,35 +167,23 @@
         body: JSON.stringify({ token })
       });
       const data = await res.json();
-      if (data.success && data.balances) {
-        balances = data.balances.reduce((acc, cur) => {
+      if (data.success) {
+        const balances = data.balances.reduce((acc, cur) => {
           acc[cur.currency.toUpperCase()] = cur.amount;
           return acc;
         }, {});
         balanceSHIB = balances.SHIB || 0;
         balanceInfoDiv.textContent = `Saldo SHIB: ${balanceSHIB.toFixed(4)}`;
       } else {
-        balanceInfoDiv.textContent = `Gagal ambil saldo: ${data.error || 'Unknown error'}`;
+        balanceInfoDiv.textContent = `Gagal ambil saldo: ${data.error}`;
       }
-    } catch (e) {
-      balanceInfoDiv.textContent = 'Kesalahan jaringan saat mengambil saldo.';
+    } catch {
+      balanceInfoDiv.textContent = 'Kesalahan saat mengambil saldo.';
     }
   }
 
   fetchBalances();
 
-  // Bot state
-  let botRunning = false;
-  let baseBet = 0;
-  let currentBet = 0;
-  let multiplier = 2;
-  let rule = 'under';
-  let betValue = 49;
-  let profit = 0;
-  let sessionProfit = 0;
-  let sessionStartedAt = null;
-
-  // Chart setup
   const ctx = document.getElementById('profitChart').getContext('2d');
   const profitChart = new Chart(ctx, {
     type: 'line',
@@ -245,18 +226,13 @@
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
-          token,
-          amount: currentBet,
-          rule,
-          multiplier,
-          betValue,
-          currency: 'SHIB'
+          token, amount: currentBet, rule, multiplier, betValue, currency: 'SHIB'
         })
       });
-      const data = await res.json();
 
+      const data = await res.json();
       if (!res.ok) {
-        log(`Error taruhan: ${data.error || JSON.stringify(data)}`);
+        log(`Error: ${data.error}`);
         stopBot();
         return;
       }
@@ -265,44 +241,42 @@
       profit += betProfit;
       sessionProfit += betProfit;
 
-      log(`Bet ke-${profitChart.data.labels.length + 1}: ${betProfit >= 0 ? 'Profit' : 'Lose'} ${betProfit.toFixed(4)} SHIB, Total profit: ${profit.toFixed(4)} SHIB`, betProfit >= 0);
+      log(`Bet #${profitChart.data.labels.length + 1}: ${betProfit >= 0 ? 'Profit' : 'Lose'} ${betProfit.toFixed(4)} SHIB`, betProfit >= 0);
 
-      // Update chart
       profitChart.data.labels.push(profitChart.data.labels.length + 1);
       profitChart.data.datasets[0].data.push(profit);
       profitChart.update();
 
       await fetchBalances();
 
-      // Check TP & SL
-      const tpValue = parseFloat(tpInput.value) || Infinity;
-      const slValue = parseFloat(slInput.value) || Infinity;
+      const tp = parseFloat(tpInput.value);
+      const sl = parseFloat(slInput.value);
 
-      if (profit >= tpValue) {
-        log(`Take Profit tercapai (${profit.toFixed(4)} SHIB). Bot berhenti.`);
-        stopBot();
-        return;
-      }
-      if (profit <= -slValue) {
-        log(`Stop Loss tercapai (${profit.toFixed(4)} SHIB). Bot berhenti.`);
+      if (profit >= tp) {
+        log(`TP tercapai (${profit.toFixed(4)} SHIB).`);
         stopBot();
         return;
       }
 
-      // Update bet untuk next round
+      if (profit <= -sl) {
+        log(`SL tercapai (${profit.toFixed(4)} SHIB).`);
+        stopBot();
+        return;
+      }
+
       if (sessionProfit > 0) {
         currentBet = baseBet;
         sessionProfit = 0;
-        sessionStartedAt = Date.now();
       } else {
-        currentBet = +(currentBet * 1.01).toFixed(6); // naik 1%
+        currentBet = +(currentBet * 1.01} else {
+        currentBet = +(currentBet * 1.01).toFixed(6); // Naikkan 1% saat kalah
       }
 
-      // Delay antara bet berikutnya (3 detik)
+      // Delay antar taruhan
       setTimeout(placeBet, 3000);
 
     } catch (e) {
-      log(`Kesalahan jaringan saat place bet: ${e.message}`);
+      log(`Kesalahan saat melakukan taruhan: ${e.message}`);
       stopBot();
     }
   }
@@ -310,7 +284,6 @@
   function startBot() {
     if (botRunning) return;
 
-    // Hitung bet awal berdasar persentase saldo
     const percent = parseFloat(baseBetPercentInput.value);
     if (!percent || percent <= 0) {
       alert('Masukkan persentase bet awal yang valid.');
@@ -320,6 +293,7 @@
       alert('Saldo SHIB tidak mencukupi.');
       return;
     }
+
     baseBet = +(balanceSHIB * (percent / 100)).toFixed(6);
     if (baseBet < 0.000001) {
       alert('Bet terlalu kecil.');
@@ -329,29 +303,26 @@
     currentBet = baseBet;
     sessionProfit = 0;
     profit = 0;
-    sessionStartedAt = Date.now();
 
     botRunning = true;
     startStopBtn.textContent = 'Stop';
-    log('Bot dimulai.');
+    log('Bot dimulai...');
     placeBet();
   }
 
   function stopBot() {
     botRunning = false;
     startStopBtn.textContent = 'Start';
-    log('Botfunction stopBot() {
-  botRunning = false;
-  startStopBtn.textContent = 'Start';
-  log('Bot dihentikan.');
-}
-startStopBtn.onclick = () => {
-  if (botRunning) {
-    stopBot();
-  } else {
-    startBot();
+    log('Bot dihentikan.');
   }
-};
+
+  startStopBtn.onclick = () => {
+    if (botRunning) {
+      stopBot();
+    } else {
+      startBot();
+    }
+  };
 </script>
 </body>
 </html>
