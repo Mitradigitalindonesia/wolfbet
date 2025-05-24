@@ -8,14 +8,36 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Health check endpoint
+// Health check
 app.get('/', (req, res) => {
   res.send('WolfBet Bot Proxy Server is running');
 });
 
-// Endpoint place bet
+// Verifikasi token user dengan fetch profil
+app.post('/api/verify-token', async (req, res) => {
+  const { token } = req.body;
+
+  if (!token) return res.status(400).json({ error: 'Token is required' });
+
+  try {
+    const response = await fetch('https://wolfbet.com/api/v1/user/profile', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (!response.ok) {
+      return res.status(response.status).json({ error: 'Invalid token' });
+    }
+
+    const userData = await response.json();
+    res.json({ success: true, user: userData });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error', detail: error.message });
+  }
+});
+
+// Place bet endpoint
 app.post('/api/place-bet', async (req, res) => {
-  const { token, amount, rule, multiplier, betValue } = req.body;
+  const { token, amount, rule, multiplier, betValue, currency = 'USDT' } = req.body;
 
   if (!token || !amount || !rule || !multiplier || betValue === undefined) {
     return res.status(400).json({ error: 'Missing required parameters' });
@@ -29,13 +51,13 @@ app.post('/api/place-bet', async (req, res) => {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-  currency,
-  game: 'dice',
-  amount,
-  rule,
-  multiplier,
-  bet_value: betValue
-})
+        currency,
+        game: 'dice',
+        amount,
+        rule,
+        multiplier,
+        bet_value: betValue
+      })
     });
 
     const data = await response.json();
