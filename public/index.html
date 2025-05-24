@@ -62,7 +62,7 @@
     let chart = null;
 
     function calculateMultiplier(chance) {
-  return +(99 / chance).toFixed(2); // 2 desimal seperti disyaratkan API
+  return parseFloat(((99 / chance) * 0.99).toFixed(4));
 }
     // Setup Chart.js line chart
     function setupChart() {
