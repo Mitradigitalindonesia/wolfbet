@@ -111,7 +111,7 @@
 function toFixed8(num) {
   return Math.floor(num * 1e8) / 1e8;
 }
-  async function placeBet(amount, rule, betValue) {
+  async function placeBet(amount, rule, bet_Value) {
   try {
     const res = await fetch('/api/place-bet', {
       method: 'POST',
@@ -156,7 +156,7 @@ function toFixed8(num) {
           // Tentukan rule dan multiplier
           const chance = randomChance(); // antara 25-55
 const rule = 'under';
-const betvalue = chance; // tidak perlu multiplier lagi
+const bet_value = chance; // tidak perlu multiplier lagi
 
           if(currentBet > balance) {
             loginError.textContent = 'Saldo tidak cukup untuk taruhan berikutnya, bot berhenti.';
