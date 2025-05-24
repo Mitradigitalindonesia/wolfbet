@@ -111,7 +111,6 @@
 function toFixed8(num) {
   return Math.floor(num * 1e8) / 1e8;
 }
-  async function placeBet(amount, rule, multiplier, betValue) {
   async function placeBet(amount, rule, betValue) {
   try {
     const res = await fetch('/api/place-bet', {
@@ -165,7 +164,7 @@ const bet_value = chance; // tidak perlu multiplier lagi
             break;
           }
 
-          const betResult = await placeBet(currentBet, rule, multiplier, bet_value);
+          const betResult = await placeBet(currentBet, rule, bet_value);
           // Update balance dan total profit
           balance = parseFloat(betResult.user_balance.amount);
           balanceSpan.textContent = balance.toFixed(4);
