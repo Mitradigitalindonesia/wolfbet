@@ -1,44 +1,34 @@
 let autoBetInterval;
 
-async function getBalance() {
-  const token = document.getElementById('token').value;
-  if (!token) {
-    document.getElementById('balances').innerText = 'Token kosong';
-    return;
-  }
+const token = "eyJ0eXAiOiJKV1QiLCJhbGciOi..."; // gunakan token dari kamu
+const amount = 10;
+const multiplier = 2;
+const rule = "over";
+const betValue = 50;
+const currency = "shib";
+const intervalMs = 5000;
 
+async function getBalance() {
   try {
     const res = await fetch('/api/get-balances', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token })
     });
-
     const data = await res.json();
-    console.log('Balance response:', data);
-
+    console.log('Saldo:', data);
     if (data.success) {
-      const balances = data.balances;
-      const shibBalance = balances.find(b => b.currency === 'shib');
-      const amount = shibBalance ? shibBalance.amount : '0.0000000000';
-      document.getElementById('balances').innerText = `Saldo SHIB: ${amount}`;
+      const shib = data.balances.find(b => b.currency === 'shib');
+      document.getElementById('balances').innerText = `Saldo SHIB: ${shib?.amount || 0}`;
     } else {
-      document.getElementById('balances').innerText = `Gagal ambil saldo: ${data.error}`;
+      document.getElementById('balances').innerText = `Gagal: ${data.error}`;
     }
-  } catch (error) {
-    console.error('Error ambil saldo:', error);
-    document.getElementById('balances').innerText = 'Terjadi kesalahan mengambil saldo.';
+  } catch (err) {
+    console.error('Gagal ambil saldo:', err);
   }
 }
 
 async function runAutoBet() {
-  const token = document.getElementById('token').value;
-  const amount = parseFloat(document.getElementById('amount').value);
-  const multiplier = parseFloat(document.getElementById('multiplier').value);
-  const rule = document.getElementById('rule').value;
-  const betValue = parseFloat(document.getElementById('betValue').value);
-  const currency = document.getElementById('currency').value;
-
   try {
     const res = await fetch('/api/place-bet', {
       method: 'POST',
@@ -47,24 +37,24 @@ async function runAutoBet() {
     });
 
     const data = await res.json();
-    console.log('Response place bet:', data);
+    console.log('Hasil bet:', data);
 
-    const statusDiv = document.getElementById('status');
     if (res.ok && data.payout) {
-      statusDiv.innerText = `Taruhan sukses! Payout: ${data.payout}`;
+      document.getElementById('status').innerText = `Sukses! Payout: ${data.payout}`;
       getBalance();
     } else {
-      statusDiv.innerText = `Gagal: ${data.error || JSON.stringify(data)}`;
+      document.getElementById('status').innerText = `Gagal: ${data.error || JSON.stringify(data)}`;
     }
-  } catch (error) {
-    console.error('Fetch place bet error:', error);
-    document.getElementById('status').innerText = 'Terjadi kesalahan saat mengirim taruhan.';
+  } catch (err) {
+    console.error('Error kirim taruhan:', err);
+    document.getElementById('status').innerText = 'Kesalahan jaringan.';
   }
 }
 
 function startAutoBet() {
   if (autoBetInterval) clearInterval(autoBetInterval);
-  autoBetInterval = setInterval(runAutoBet, 5000); // tanpa eval/string
+  runAutoBet(); // langsung jalan pertama kali
+  autoBetInterval = setInterval(runAutoBet, intervalMs);
 }
 
 function stopAutoBet() {
