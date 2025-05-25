@@ -30,25 +30,26 @@ function startAutoBet() {
   if (!token) return alert('Token harus diisi');
 
   autoBetInterval = setInterval(async () => {
-    const res = await fetch('/api/place-bet', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token, amount, rule, multiplier, betValue, currency })
-    });
+    try {
+      const res = await fetch('/api/place-bet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, amount, rule, multiplier, betValue, currency })
+      });
 
-    const data = await res.json();
-    const statusDiv = document.getElementById('status');
-    if (res.ok && data.payout) {
-      statusDiv.innerText = `Taruhan sukses! Payout: ${data.payout}`;
-      getBalance(); // perbarui saldo
-    } else {
-      console.log(data); // log error detail
-      statusDiv.innerText = `Gagal: ${data.error || JSON.stringify(data)}`;
+      const data = await res.json();
+      console.log('Response place bet:', data); // <-- log response dari server
+
+      const statusDiv = document.getElementById('status');
+      if (res.ok && data.payout) {
+        statusDiv.innerText = `Taruhan sukses! Payout: ${data.payout}`;
+        getBalance(); // update saldo
+      } else {
+        statusDiv.innerText = `Gagal: ${data.error || JSON.stringify(data)}`;
+      }
+    } catch (error) {
+      console.error('Fetch place bet error:', error); // log error network/dll
+      document.getElementById('status').innerText = 'Terjadi kesalahan saat mengirim taruhan.';
     }
-  }, 5000); // ubah interval sesuai kebutuhan
-}
-
-function stopAutoBet() {
-  clearInterval(autoBetInterval);
-  document.getElementById('status').innerText = 'Auto bet dihentikan.';
+  }, 5000);
 }
