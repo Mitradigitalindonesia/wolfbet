@@ -61,7 +61,7 @@ app.post('/api/get-balances', async (req, res) => {
 });
 // Place Bet
 app.post('/api/place-bet', async (req, res) => {
-  const { token, amount, rule, multiplier, betValue, currency = 'USDT' } = req.body;
+  const { token, amount, rule, multiplier, betValue, currency = 'SHIB' } = req.body;
   if (!token || !amount || !rule || !multiplier || betValue === undefined) {
     return res.status(400).json({ error: 'Missing required parameters' });
   }
