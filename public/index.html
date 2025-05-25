@@ -91,26 +91,43 @@
     }
 
     async function placeBet(amount, rule, multiplier, betValue) {
-      try {
-        const res = await fetch('/api/place-bet', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            token,
-            currency: 'shib',
-            game: 'dice',
-            amount: toFixed8(amount),
-            rule,
-            multiplier,
-            bet_value: betValue
-          })
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Gagal melakukan bet');
-        return data;
-      } catch (e) {
-        throw e;
-      }
+  // Validasi & log parameter
+  if (!token || amount == null || !rule || !multiplier || betValue == null) {
+    console.error('Missing parameters for bet:', {
+      token, amount, rule, multiplier, betValue
+    });
+    throw new Error('Parameter tidak lengkap untuk melakukan bet');
+  }
+
+  const payload = {
+    token,
+    currency: 'shib',
+    game: 'dice',
+    amount: toFixed8(amount),
+    rule,
+    multiplier: parseFloat(multiplier.toFixed(4)), // pastikan float
+    bet_value: parseInt(betValue) // pastikan integer
+  };
+
+  console.log('Sending bet request:', payload); // Debug log
+
+  try {
+    const res = await fetch('/api/place-bet', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+    console.log('Received bet response:', data); // Debug log
+
+    if (!res.ok) throw new Error(data.error || 'Gagal melakukan bet');
+    return data;
+  } catch (e) {
+    console.error('Error saat fetch bet:', e); // Log error
+    throw e;
+  }
+}
     }
 
     function randomChance() {
@@ -128,15 +145,13 @@
       while (isRunning) {
         try {
           const chance = randomChance();
-          const rule = 'under';
-          const betValue = chance;
-          const multiplier = calculateMultiplier(chance);
+const rule = 'under';
+const betValue = chance;
+const multiplier = calculateMultiplier(chance);
 
-          if (currentBet > balance) {
-            loginError.textContent = 'Saldo tidak cukup. Bot dihentikan.';
-            stopBot();
-            break;
-          }
+console.log('Betting with:', {
+  currentBet, rule, multiplier, betValue
+});
 
           const betResult = await placeBet(currentBet, rule, multiplier, betValue);
           balance = parseFloat(betResult.user_balance.amount);
