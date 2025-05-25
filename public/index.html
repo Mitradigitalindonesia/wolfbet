@@ -1,5 +1,4 @@
-<!DOCTYPE html>
-<html lang="id">
+<!DOCTYPE html><html lang="id">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -14,16 +13,12 @@
     #login-btn { border-radius: 50%; width: 50px; height: 50px; font-weight: bold; cursor: pointer; }
   </style>
 </head>
-<body>
-
-  <div id="login-section">
+<body>  <div id="login-section">
     <button id="login-btn" title="Login">L</button>
     <h2>AutobotX - Login Token</h2>
     <input id="token-input" placeholder="Masukkan token di sini" />
     <div id="login-error" style="color:red;"></div>
-  </div>
-
-  <div id="bot-ui" style="display:none;">
+  </div>  <div id="bot-ui" style="display:none;">
     <div id="balance-pnl">
       <div>Balance SHIB: <span id="balance">0</span></div>
       <div>PNL: <span id="pnl">0</span></div>
@@ -36,10 +31,7 @@
     </div>
     <h3>Riwayat Transaksi</h3>
     <div id="history"></div>
-  </div>
-
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script>
+  </div>  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>  <script>
     const loginBtn = document.getElementById('login-btn');
     const tokenInput = document.getElementById('token-input');
     const loginError = document.getElementById('login-error');
@@ -91,42 +83,26 @@
     }
 
     async function placeBet(amount, rule, multiplier, betValue) {
-  // Validasi & log parameter
-  if (!token || amount == null || !rule || !multiplier || betValue == null) {
-    console.error('Missing parameters for bet:', {
-      token, amount, rule, multiplier, betValue
-    });
-    throw new Error('Parameter tidak lengkap untuk melakukan bet');
-  }
-
-  const payload = {
-    token,
-    currency: 'shib',
-    game: 'dice',
-    amount: toFixed8(amount),
-    rule,
-    multiplier: parseFloat(multiplier.toFixed(4)), // pastikan float
-    bet_value: parseInt(betValue) // pastikan integer
-  };
-
-  console.log('Sending bet request:', payload); // Debug log
-
-  try {
-    const res = await fetch('/api/place-bet', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-
-    const data = await res.json();
-    console.log('Received bet response:', data); // Debug log
-
-    if (!res.ok) throw new Error(data.error || 'Gagal melakukan bet');
-    return data;
-  } catch (e) {
-    console.error('Error saat fetch bet:', e); // Log error
-    throw e;
-  }
+      try {
+        const res = await fetch('/api/place-bet', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            token,
+            currency: 'shib',
+            game: 'dice',
+            amount: toFixed8(amount),
+            rule,
+            multiplier,
+            bet_value: betValue
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Gagal melakukan bet');
+        return data;
+      } catch (e) {
+        throw e;
+      }
     }
 
     function randomChance() {
@@ -144,13 +120,15 @@
       while (isRunning) {
         try {
           const chance = randomChance();
-const rule = 'under';
-const betValue = chance;
-const multiplier = calculateMultiplier(chance);
+          const rule = 'under';
+          const betValue = chance;
+          const multiplier = calculateMultiplier(chance);
 
-console.log('Betting with:', {
-  currentBet, rule, multiplier, betValue
-});
+          if (currentBet > balance) {
+            loginError.textContent = 'Saldo tidak cukup. Bot dihentikan.';
+            stopBot();
+            break;
+          }
 
           const betResult = await placeBet(currentBet, rule, multiplier, betValue);
           balance = parseFloat(betResult.user_balance.amount);
