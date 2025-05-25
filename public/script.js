@@ -4,14 +4,16 @@ async function getBalance() {
   const token = document.getElementById('token').value;
   const res = await fetch('/api/get-balances', {
     method: 'POST',
-    headers: {'Content-Type': 'application/json'},
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ token })
   });
 
   const data = await res.json();
   if (data.success) {
     const balances = data.balances;
-    document.getElementById('balances').innerText = `Saldo: ${JSON.stringify(balances)}`;
+    const shibBalance = balances.find(b => b.currency === 'shib');
+    const amount = shibBalance ? shibBalance.amount : '0.0000000000';
+    document.getElementById('balances').innerText = `Saldo SHIB: ${amount}`;
   } else {
     document.getElementById('balances').innerText = `Gagal ambil saldo: ${data.error}`;
   }
@@ -30,19 +32,20 @@ function startAutoBet() {
   autoBetInterval = setInterval(async () => {
     const res = await fetch('/api/place-bet', {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token, amount, rule, multiplier, betValue, currency })
     });
 
     const data = await res.json();
     const statusDiv = document.getElementById('status');
     if (res.ok && data.payout) {
-      statusDiv.innerText = `Taruhan sukses! Hasil payout: ${data.payout}`;
-      getBalance(); // refresh saldo
+      statusDiv.innerText = `Taruhan sukses! Payout: ${data.payout}`;
+      getBalance(); // perbarui saldo
     } else {
+      console.log(data); // log error detail
       statusDiv.innerText = `Gagal: ${data.error || JSON.stringify(data)}`;
     }
-  }, 5000); // 1x tiap 5 detik, bisa kamu ubah
+  }, 5000); // ubah interval sesuai kebutuhan
 }
 
 function stopAutoBet() {
