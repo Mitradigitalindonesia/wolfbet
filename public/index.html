@@ -2,15 +2,15 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <title>WolfBet Auto Bet</title>
+  <title>WolfBet Auto Bet - SHIBA</title>
   <style>
-    body { font-family: sans-serif; padding: 20px; }
-    input, button { margin: 5px 0; padding: 5px; width: 100%; max-width: 400px; }
-    #balances, #status { margin-top: 10px; }
+    body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: auto; }
+    input, button, select { margin: 5px 0; padding: 8px; width: 100%; }
+    #balances, #status { margin-top: 10px; background: #f0f0f0; padding: 10px; border-radius: 5px; }
   </style>
 </head>
 <body>
-  <h1>WolfBet Auto Bet UI</h1>
+  <h1>Auto Bet WolfBet (SHIBA)</h1>
 
   <label>Token:</label>
   <input type="text" id="token" placeholder="Masukkan token kamu">
@@ -22,7 +22,7 @@
 
   <h3>Auto Bet</h3>
   <label>Jumlah Taruhan:</label>
-  <input type="number" id="amount" value="0.00000001">
+  <input type="number" id="amount" value="10">
 
   <label>Multiplier:</label>
   <input type="number" id="multiplier" value="2">
@@ -36,11 +36,8 @@
   <label>Nilai Bet (0-99.99):</label>
   <input type="number" id="betValue" value="50">
 
-  <label>Currency:</label>
-  <select id="currency">
-    <option value="vlt">VLT</option>
-    <option value="btc">BTC</option>
-  </select>
+  <div><strong>Mata Uang:</strong> SHIBA (shib)</div>
+  <input type="hidden" id="currency" value="shib">
 
   <button onclick="startAutoBet()">Mulai Auto Bet</button>
   <button onclick="stopAutoBet()">Berhenti</button>
