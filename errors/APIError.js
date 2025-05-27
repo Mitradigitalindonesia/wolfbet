@@ -1,13 +1,7 @@
-module.exports  = class APIError extends Error {
-  constructor(message, obj) {
+module.exports = class APIError extends Error {
+  constructor(message, originalError = null) {
     super(message);
     this.name = 'APIError';
-    this.error = obj.value;
-    this.description = obj.value;
-    if (typeof Error.captureStackTrace === 'function') {
-      Error.captureStackTrace(this, this.constructor);
-    } else {
-      this.stack = new Error(message).stack;
-    }
+    this.originalError = originalError;
   }
-}
+};
