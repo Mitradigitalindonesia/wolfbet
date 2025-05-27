@@ -25,31 +25,44 @@ module.exports = class WolfBet extends BaseDice {
   }
 
   async refresh(req) {
-    let info = req.session.info;
-    if (info) {
-      console.log("info is not null");
-      return info;
-    }
-    let accessToken = req.session.accessToken;
-    let currency = req.query.currency;
-    let ret = await this._send('api/v1/user/stats/bets', 'GET', '', 'Bearer ' + accessToken);
-    let userinfo = {};
-    const currencyStats = ret.dice[currency];
-    userinfo.bets = currencyStats.total_bets;
-    userinfo.wins = currencyStats.win;
-    userinfo.losses = currencyStats.lose;
-    userinfo.profit = currencyStats.profit;
-    userinfo.wagered = currencyStats.waggered;
-    ret = await this._send('api/v1/user/balances', 'GET', '', 'Bearer ' + accessToken);
-    ret.balances.forEach(function (item) {
-      if (currency == item.currency) {
-        userinfo.balance = item.amount;
-      }
-    });
-    userinfo.success = true;
-    info = { info: userinfo };
-    req.session.info = info;
+  async refresh(req) {
+  let info = req.session.info;
+  if (info) {
+    console.log("info is not null");
     return info;
+  }
+  let accessToken = req.session.accessToken;
+  let currency = req.query.currency;
+
+  let ret = await this._send('api/v1/user/stats/bets', 'GET', '', 'Bearer ' + accessToken);
+  console.log('Stats Response:', JSON.stringify(ret));
+
+  let userinfo = {};
+  const currencyStats = ret?.dice?.[currency];
+
+  if (!currencyStats) {
+    throw new Error(`Tidak ada data stats untuk mata uang ${currency}`);
+  }
+
+  userinfo.bets = currencyStats.total_bets;
+  userinfo.wins = currencyStats.win;
+  userinfo.losses = currencyStats.lose;
+  userinfo.profit = currencyStats.profit;
+  userinfo.wagered = currencyStats.waggered;
+
+  ret = await this._send('api/v1/user/balances', 'GET', '', 'Bearer ' + accessToken);
+  console.log('Balance Response:', JSON.stringify(ret));
+
+  ret.balances.forEach(function (item) {
+    if (currency == item.currency) {
+      userinfo.balance = item.amount;
+    }
+  });
+
+  userinfo.success = true;
+  info = { info: userinfo };  // Jika sebelumnya info belum ada, kita buat baru
+  req.session.info = info;
+  return info;
   }
 
   async clear(req) {
