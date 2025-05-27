@@ -11,6 +11,7 @@
     "express-session": "^1.17.3",
     "body-parser": "^1.20.2",
     "node-fetch": "^2.6.9",
-    "isomorphic-fetch": "^3.0.0"
+    "isomorphic-fetch": "^3.0.0",
+    "socks-proxy-agent": "^7.0.0"
   }
 }
