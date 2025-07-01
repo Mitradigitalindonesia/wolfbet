@@ -1,8 +1,9 @@
+require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
 const bodyParser = require('body-parser');
 const path = require('path');
-const WolfBet = require('./bot/wolfbet');
+const WolfBet = require('./bot/wolfbet'); // pastikan file ini sudah dibuat dan benar
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -11,33 +12,31 @@ const PORT = process.env.PORT || 3000;
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(session({
-  secret: 'wolfbet-secret',
+  secret: process.env.SESSION_SECRET || 'rahasia-wolfbet',
   resave: false,
   saveUninitialized: true
 }));
 
-// Init WolfBet instance
-const wolfbet = new WolfBet({ ip: null, port: null });
+// Inisialisasi Bot
+const wolfbet = new WolfBet({});
 
 // Routes
-
-// Serve frontend
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Login with API key
 app.post('/api/login', async (req, res) => {
   const { apiKey } = req.body;
+  if (!apiKey) return res.status(400).json({ error: 'API Key dibutuhkan' });
+
   try {
-    await wolfbet.login(null, null, null, apiKey, req);
+    await wolfbet.login(apiKey, req);
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Refresh user stats
 app.get('/api/refresh', async (req, res) => {
   try {
     const data = await wolfbet.refresh(req);
@@ -47,27 +46,19 @@ app.get('/api/refresh', async (req, res) => {
   }
 });
 
-// Place a bet
 app.post('/api/place-bet', async (req, res) => {
   try {
-    const result = await wolfbet.bet(req);
+    const result = await wolfbet.bet(req.body, req);
     res.json(result);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Reset client seed
-app.post('/api/reset-seed', async (req, res) => {
-  try {
-    const result = await wolfbet.resetseed(req);
-    res.json(result);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+app.use((req, res) => {
+  res.status(404).json({ error: 'Endpoint tidak ditemukan' });
 });
 
-// Start server
 app.listen(PORT, () => {
-  console.log(`WolfBet Bot Backend is running at http://localhost:${PORT}`);
+  console.log(`Server berjalan di http://localhost:${PORT}`);
 });
