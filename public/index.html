@@ -1,141 +1,33 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8" />
-  <title>WolfBet Auto Bet - SHIBA</title>
-  <style>
-    body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: auto; }
-    input, button, select { margin: 5px 0; padding: 8px; width: 100%; }
-    #balances, #status { margin-top: 10px; background: #f0f0f0; padding: 10px; border-radius: 5px; }
-  </style>
+  <meta charset="UTF-8">
+  <title>WolfBet AutoBet</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>Auto Bet WolfBet (SHIBA)</h1>
+  <h1>WolfBet Auto Bet</h1>
+  <div class="container">
+    <input id="token" placeholder="API Key">
+    <select id="currency">
+      <option value="btc">BTC</option>
+    </select>
+    <button onclick="login()">Login</button>
+    <p id="balances">Saldo: -</p>
 
-  <label>Token:</label>
-  <input type="text" id="token" placeholder="Masukkan token kamu" />
-  <button onclick="login()">Login</button>
+    <input id="amount" type="number" step="0.00000001" placeholder="Amount (e.g 0.001)">
+    <input id="multiplier" type="number" step="0.01" placeholder="Multiplier (e.g 1.98)">
+    <select id="rule">
+      <option value="over">Over</option>
+      <option value="under">Under</option>
+    </select>
+    <input id="betValue" type="number" step="0.01" placeholder="Bet Value (e.g 49.99)">
+    <br>
+    <button onclick="startAutoBet()">Mulai Auto Bet</button>
+    <button onclick="stopAutoBet()">Stop</button>
+    <p id="status">Status: -</p>
+  </div>
 
-  <button onclick="getBalance()">Ambil Saldo</button>
-  <div id="balances">Saldo: -</div>
-
-  <hr />
-
-  <h3>Auto Bet</h3>
-  <label>Jumlah Taruhan:</label>
-  <input type="number" id="amount" value="10" />
-
-  <label>Multiplier:</label>
-  <input type="number" id="multiplier" value="2" step="0.01" min="1.01" />
-
-  <label>Aturan (over/under):</label>
-  <select id="rule">
-    <option value="over">Over</option>
-    <option value="under">Under</option>
-  </select>
-
-  <label>Nilai Bet (0-99.99):</label>
-  <input type="number" id="betValue" value="50" step="0.01" min="0" max="99.99" />
-
-  <div><strong>Mata Uang:</strong> SHIBA (shib)</div>
-  <input type="hidden" id="currency" value="shib" />
-
-  <button onclick="startAutoBet()">Mulai Auto Bet</button>
-  <button onclick="stopAutoBet()">Berhenti</button>
-
-  <div id="status">Status: -</div>
-
-<script>
-let autoBetInterval = null;
-
-async function login() {
-  const token = document.getElementById('token').value.trim();
-  if (!token) return alert('Token harus diisi!');
-
-  const res = await fetch('/api/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ apiKey: token })
-  });
-
-  const data = await res.json();
-  if (data.success) {
-    alert('Login berhasil. Kamu bisa mulai Auto Bet sekarang.');
-  } else {
-    alert('Login gagal: ' + (data.error || 'Unknown error'));
-  }
-}
-
-async function getBalance() {
-  const currency = document.getElementById('currency').value;
-  try {
-    const res = await fetch('/api/refresh?currency=' + currency, {
-      method: 'GET',
-      credentials: 'same-origin'
-    });
-    const data = await res.json();
-    if (data && data.info && data.info.balance !== undefined) {
-      document.getElementById('balances').innerText = `Saldo: ${data.info.balance} ${currency.toUpperCase()}`;
-    } else {
-      document.getElementById('balances').innerText = 'Gagal ambil saldo.';
-    }
-  } catch (err) {
-    document.getElementById('balances').innerText = 'Error mengambil saldo.';
-  }
-}
-
-function startAutoBet() {
-  if (autoBetInterval) clearInterval(autoBetInterval);
-
-  const token = document.getElementById('token').value.trim();
-  if (!token) return alert('Token harus diisi dan login dulu!');
-
-  const currency = document.getElementById('currency').value;
-  const amount = parseFloat(document.getElementById('amount').value);
-  const multiplier = parseFloat(document.getElementById('multiplier').value);
-  const rule = document.getElementById('rule').value;
-  const betValue = parseFloat(document.getElementById('betValue').value);
-
-  if (isNaN(amount) || amount <= 0) return alert('Jumlah taruhan harus angka positif');
-  if (isNaN(multiplier) || multiplier < 1.01) return alert('Multiplier minimal 1.01');
-  if (isNaN(betValue) || betValue < 0 || betValue > 99.99) return alert('Nilai Bet harus antara 0 dan 99.99');
-
-  autoBetInterval = setInterval(async () => {
-    try {
-      const res = await fetch('/api/place-bet', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          token,
-          amount: amount.toFixed(8),
-          multiplier: multiplier.toFixed(4),
-          rule,
-          betValue: betValue.toFixed(2),
-          currency
-        })
-      });
-      const data = await res.json();
-
-      if (data.betInfo) {
-        const statusEl = document.getElementById('status');
-        statusEl.innerText = `Roll: ${data.betInfo.roll} | Target: ${data.betInfo.target} | ${data.betInfo.win ? 'Menang' : 'Kalah'} | Profit: ${data.betInfo.profit}`;
-        getBalance();
-      } else {
-        stopAutoBet();
-        alert('Error saat bet: ' + (data.error || 'Unknown error'));
-      }
-    } catch (err) {
-      stopAutoBet();
-      alert('Kesalahan jaringan saat bet.');
-    }
-  }, 3000);
-}
-
-function stopAutoBet() {
-  if (autoBetInterval) clearInterval(autoBetInterval);
-  document.getElementById('status').innerText = 'Auto Bet dihentikan.';
-}
-</script>
-
+  <script src="script.js"></script>
 </body>
 </html>
