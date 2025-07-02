@@ -1,15 +1,12 @@
 const axios = require('axios');
 
 class WolfBet {
-  constructor(options = {}) {
-    this.apiUrl = 'https://api.wolf.bet'; // Endpoint utama
+  constructor() {
+    this.apiUrl = 'https://api.wolf.bet';
   }
 
-  // Simpan API key ke session
-  async login(apiKey, req) {
-    if (!apiKey) throw new Error('API key tidak boleh kosong');
-
-    // Coba ambil data user untuk validasi API key
+  // Validasi API key
+  async validate(apiKey) {
     const response = await axios.get(`${this.apiUrl}/v1/users/me`, {
       headers: {
         Authorization: `Bearer ${apiKey}`
@@ -17,19 +14,14 @@ class WolfBet {
     });
 
     if (!response.data || !response.data.user) {
-      throw new Error('Login gagal: API Key tidak valid');
+      throw new Error('API Key tidak valid');
     }
 
-    req.session.apiKey = apiKey;
-    req.session.user = response.data.user;
-    return true;
+    return response.data.user;
   }
 
-  // Ambil saldo / info user
-  async refresh(req) {
-    const apiKey = req.session.apiKey;
-    if (!apiKey) throw new Error('Belum login');
-
+  // Ambil info user
+  async refresh(apiKey) {
     const response = await axios.get(`${this.apiUrl}/v1/users/me`, {
       headers: {
         Authorization: `Bearer ${apiKey}`
@@ -38,41 +30,15 @@ class WolfBet {
 
     const user = response.data.user;
     return {
-      info: {
-        username: user.username,
-        balance: user.balance.amount,
-        currency: user.balance.currency
-      }
+      username: user.username,
+      balance: user.balance.amount,
+      currency: user.balance.currency
     };
   }
 
-  // Melakukan taruhan
-  async bet(params, req) {
-    const apiKey = req.session.apiKey;
-    if (!apiKey) throw new Error('Belum login');
-
-    const {
-      currency,
-      game,
-      amount,
-      rule,
-      multiplier,
-      bet_value
-    } = params;
-
-    // Validasi
-    if (!currency || !game || !amount || !rule || !multiplier || !bet_value) {
-      throw new Error('Semua parameter taruhan wajib diisi');
-    }
-
-    const payload = {
-      currency,
-      game,
-      amount,
-      rule,
-      multiplier,
-      bet_value
-    };
+  // Taruhan
+  async bet({ currency, game, amount, rule, multiplier, bet_value, apiKey }) {
+    const payload = { currency, game, amount, rule, multiplier, bet_value };
 
     const response = await axios.post(`${this.apiUrl}/v1/bets/place`, payload, {
       headers: {
@@ -80,7 +46,7 @@ class WolfBet {
       }
     });
 
-    return response.data; // Sudah dalam format standar dari WolfBet
+    return response.data;
   }
 }
 
