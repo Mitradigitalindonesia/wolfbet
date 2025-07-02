@@ -1,62 +1,64 @@
+// server.js
+
 require('dotenv').config();
 const express = require('express');
-const session = require('express-session');
 const bodyParser = require('body-parser');
 const path = require('path');
-const WolfBet = require('./bot/wolfbet'); // pastikan file ini sudah dibuat dan benar
+const WolfBet = require('./bot/wolfbet');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, 'public')));
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'rahasia-wolfbet',
-  resave: false,
-  saveUninitialized: true
-}));
 
-// Inisialisasi Bot
-const wolfbet = new WolfBet({});
+const wolfbet = new WolfBet();
 
-// Routes
+// Serve frontend
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// Login (validasi token)
 app.post('/api/login', async (req, res) => {
   const { apiKey } = req.body;
   if (!apiKey) return res.status(400).json({ error: 'API Key dibutuhkan' });
 
   try {
-    await wolfbet.login(apiKey, req);
-    res.json({ success: true });
+    const user = await wolfbet.validate(apiKey); // ubah dari .login
+    res.json({ success: true, username: user.username });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('[LOGIN ERROR]', error.response?.data || error.message);
+    res.status(500).json({ error: error.response?.data?.message || error.message });
   }
 });
 
-app.get('/api/refresh', async (req, res) => {
+// Refresh saldo
+app.post('/api/refresh', async (req, res) => {
+  const { apiKey } = req.body;
+  if (!apiKey) return res.status(401).json({ error: 'Tidak ada API key' });
+
   try {
-    const data = await wolfbet.refresh(req);
-    res.json(data);
+    const info = await wolfbet.refresh(apiKey);
+    res.json({ info });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('[REFRESH ERROR]', error.response?.data || error.message);
+    res.status(500).json({ error: error.response?.data?.message || error.message });
   }
 });
 
+// Bet
 app.post('/api/place-bet', async (req, res) => {
+  const { apiKey } = req.body;
+  if (!apiKey) return res.status(401).json({ error: 'Tidak ada API key' });
+
   try {
-    const result = await wolfbet.bet(req.body, req);
+    const result = await wolfbet.bet(req.body);
     res.json(result);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('[BET ERROR]', error.response?.data || error.message);
+    res.status(500).json({ error: error.response?.data?.message || error.message });
   }
-});
-
-app.use((req, res) => {
-  res.status(404).json({ error: 'Endpoint tidak ditemukan' });
 });
 
 app.listen(PORT, () => {
